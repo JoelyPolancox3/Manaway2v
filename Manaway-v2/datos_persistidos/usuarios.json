@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "nombre": "Tim Mapache",
+    "usuario": "tim",
+    "contrasena": "1234",
+    "rol": "viajero",
+    "correo": "mapachetim777@gmail.com",
+    "telefono": "1234 5678",
+    "unidad_id": 0
+  }
+]

@@ -1,0 +1,11 @@
+[
+  {
+    "tipo": "Accidente",
+    "ruta_id": 1,
+    "descripcion": "dfdfdfsddsfs",
+    "reportado_por": "Caracol Suarez",
+    "hora": "19:32",
+    "resuelta": false,
+    "parada_id": null
+  }
+]
