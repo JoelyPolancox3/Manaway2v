@@ -32,6 +32,17 @@ def vista_perfil(page: ft.Page, args: list = None) -> ft.View:
     campo_usuario = c.campo("Usuario", valor=usuario.usuario,
                             icono=ft.Icons.PERSON_OUTLINE, read_only=True)
 
+    # Contraseña: solo de lectura aquí, se cambia en la sección Seguridad
+    campo_clave_actual = c.campo(
+        "Contraseña actual", icono=ft.Icons.LOCK_OUTLINE,
+        password=True, can_reveal_password=True, hint_text="••••••")
+    campo_clave_nueva = c.campo(
+        "Nueva contraseña", icono=ft.Icons.PASSWORD,
+        password=True, can_reveal_password=True, hint_text="••••••")
+    campo_clave_confirmar = c.campo(
+        "Confirmar contraseña", icono=ft.Icons.KEY,
+        password=True, can_reveal_password=True, hint_text="••••••")
+
     def refrescar(ev=None):
         """Reconstruye la vista del perfil en el sitio."""
         estado.desregistrar_ticks()
@@ -39,6 +50,31 @@ def vista_perfil(page: ft.Page, args: list = None) -> ft.View:
         vista.route = page.route
         page.views[-1] = vista
         page.update()
+
+    def cambiar_contrasena(ev):
+        campo_clave_actual.error = None
+        campo_clave_nueva.error = None
+        campo_clave_confirmar.error = None
+        u_nueva, error = funciones.cambiar_contrasena_propia(
+            usuario.id,
+            campo_clave_actual.value or "",
+            campo_clave_nueva.value or "",
+            campo_clave_confirmar.value or "")
+        if error:
+            # El mensaje de la lógica dice qué campo hay que corregir
+            if "confirmación" in error:
+                campo_clave_confirmar.error = error
+            elif "actual" in error and "nueva" not in error:
+                campo_clave_actual.error = error
+            else:
+                campo_clave_nueva.error = error
+            page.update()
+            return
+        # La sesión abierta se queda con la contraseña nueva
+        if u_nueva:
+            usuario.contrasena = u_nueva.contrasena
+        estado.snack(page, "Contraseña actualizada correctamente.", "exito")
+        refrescar()
 
     def guardar(ev):
         nombre = campo_nombre.value.strip()
@@ -144,6 +180,16 @@ def vista_perfil(page: ft.Page, args: list = None) -> ft.View:
             campo_telefono,
             c.boton("Guardar cambios", on_click=guardar,
                     icono=ft.Icons.SAVE_OUTLINED),
+            ft.Container(height=theme.ESPACIO_XS),
+            c.seccion_titulo("Seguridad"),
+            ft.Text("Cambiá tu contraseña: pide la actual y la nueva "
+                    "tiene que tener al menos 6 caracteres.",
+                    size=TEXTO_XS, color=paleta.texto_sec),
+            campo_clave_actual,
+            campo_clave_nueva,
+            campo_clave_confirmar,
+            c.boton("Cambiar contraseña", on_click=cambiar_contrasena,
+                    icono=ft.Icons.LOCK_RESET),
             ft.Container(height=theme.ESPACIO_XS),
             c.seccion_titulo("Preferencias"),
             c.tarjeta(

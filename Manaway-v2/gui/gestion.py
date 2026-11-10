@@ -37,6 +37,68 @@ def vista_gestion(page: ft.Page, args: list = None) -> ft.View:
     usuarios_app = funciones.listar_usuarios()
     dueno_unidad = {u.unidad_id: u for u in usuarios_app if u.unidad_id}
     filas_usuarios = []
+
+    def abrir_dialogo_contrasena(uid, nombre):
+        """Pide una contraseña nueva para una cuenta (CRUD «actualizar»)."""
+        campo_nueva = c.campo(
+            "Nueva contraseña", icono=ft.Icons.PASSWORD,
+            password=True, can_reveal_password=True, hint_text="••••••")
+        campo_confirmar = c.campo(
+            "Confirmar contraseña", icono=ft.Icons.KEY,
+            password=True, can_reveal_password=True, hint_text="••••••")
+
+        def guardar(ev):
+            campo_nueva.error = None
+            campo_confirmar.error = None
+            nueva = campo_nueva.value or ""
+            confirmar = campo_confirmar.value or ""
+            if nueva != confirmar:
+                campo_confirmar.error = ("La confirmación no coincide con "
+                                         "la contraseña nueva.")
+                page.update()
+                return
+            _, error = funciones.actualizar_contrasena(uid, nueva)
+            if error:
+                campo_nueva.error = error
+                page.update()
+                return
+            page.pop_dialog()
+            estado.snack(page,
+                         f"Contraseña de «{nombre}» restablecida.",
+                         "exito")
+
+        dialogo = ft.AlertDialog(
+            modal=True,
+            icon=ft.Icon(ft.Icons.LOCK_RESET, color=paleta.advertencia,
+                         size=28),
+            title=ft.Text("Restablecer contraseña", size=theme.TEXTO_M,
+                          weight=PESO_BOLD, color=paleta.texto,
+                          text_align=ft.TextAlign.CENTER),
+            content=ft.Container(
+                width=330,
+                content=ft.Column([
+                    ft.Text(f"Se cambiará la contraseña de «{nombre}» sin "
+                            "pedir la actual.",
+                            size=TEXTO_XS, color=paleta.texto_sec,
+                            text_align=ft.TextAlign.CENTER),
+                    campo_nueva,
+                    campo_confirmar,
+                ], spacing=theme.ESPACIO_L, tight=True,
+                    horizontal_alignment=ft.CrossAxisAlignment.STRETCH),
+            ),
+            actions=[
+                c.boton("Cancelar", estilo="texto",
+                        on_click=lambda e: page.pop_dialog()),
+                c.boton("Restablecer", icono=ft.Icons.LOCK_RESET,
+                        on_click=guardar),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+            bgcolor=paleta.superficie,
+            shape=ft.RoundedRectangleBorder(radius=theme.RADIO_L),
+            inset_padding=ft.Padding(20, 0, 20, 0),
+        )
+        page.show_dialog(dialogo)
+
     for u in usuarios_app:
         es_sistema = u.usuario.lower() in funciones.CUENTAS_SISTEMA
         es_propia = estado.usuario and estado.usuario.id == u.id
@@ -124,12 +186,28 @@ def vista_gestion(page: ft.Page, args: list = None) -> ft.View:
             refrescar()
 
         icono_eliminar = ft.IconButton(
-            icon=(ft.Icons.LOCK_OUTLINE if es_sistema else ft.Icons.DELETE_OUTLINE),
+            icon=(ft.Icons.LOCK_OUTLINE if es_sistema else ft.Icons.DELETE_OUTLINED),
             icon_color=(paleta.texto_sec if es_sistema else paleta.error),
             tooltip=("Cuenta del sistema: no se puede eliminar"
                      if es_sistema else "Eliminar cuenta"),
             on_click=eliminar,
             disabled=es_sistema or es_propia,
+        )
+
+        def restablecer(ev, uid=u.id, nombre=u.nombre, sistema=es_sistema):
+            if sistema:
+                estado.snack(page, "No se puede restablecer una cuenta "
+                              "del sistema.", "aviso")
+                return
+            abrir_dialogo_contrasena(uid, nombre)
+
+        icono_contrasena = ft.IconButton(
+            icon=ft.Icons.PASSWORD,
+            icon_color=paleta.texto_sec,
+            tooltip=("Cuenta del sistema: no se puede restablecer"
+                     if es_sistema else "Restablecer contraseña"),
+            on_click=restablecer,
+            disabled=es_sistema,
         )
 
         filas_usuarios.append(
@@ -151,6 +229,7 @@ def vista_gestion(page: ft.Page, args: list = None) -> ft.View:
                                      "admin": paleta.advertencia}.get(
                                          u.rol, paleta.primario)),
                                 color_texto=paleta.texto),
+                        icono_contrasena,
                         icono_eliminar,
                     ], spacing=theme.ESPACIO_S,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER),
@@ -345,7 +424,8 @@ def vista_gestion(page: ft.Page, args: list = None) -> ft.View:
             tarjeta_info,
             c.seccion_titulo("Usuarios"),
             ft.Text("Creá cuentas nuevas desde el registro; aquí cambiás "
-                    "roles, asignás unidades y eliminás cuentas.",
+                    "roles, asignás unidades, restablecés contraseñas y "
+                    "eliminás cuentas.",
                     size=TEXTO_XS, color=paleta.texto_sec),
             ft.Column(filas_usuarios, spacing=theme.ESPACIO_S),
         ],

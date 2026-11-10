@@ -219,6 +219,33 @@ def actualizar_contrasena(usuario_id,
     return _guardar_copia(replace(u, contrasena=clave))
 
 
+def cambiar_contrasena_propia(usuario_id,
+                              actual, nueva,
+                              confirmar) -> tuple[Usuario | None, str | None]:
+    """Cambia la contraseña de la cuenta abierta (CRUD desde el perfil).
+
+    Pide la contraseña actual para demostrar que es la persona quien
+    está haciendo el cambio, y aplica las mismas reglas del registro
+    (mínimo 6 caracteres) más dos propias: la nueva no puede ser igual
+    a la actual y las dos escrituras tienen que coincidir.
+    """
+    u = usuario_por_id(usuario_id)
+    if not u:
+        return None, "No existe ninguna cuenta con ese identificador."
+    if not actual:
+        return None, "Escribe tu contraseña actual."
+    if u.contrasena != actual:
+        return None, "La contraseña actual no es correcta."
+    clave, error = validaciones.validar_contrasena(nueva)
+    if error:
+        return None, error
+    if nueva == actual:
+        return None, "La contraseña nueva debe ser distinto a la actual."
+    if confirmar is None or nueva != confirmar:
+        return None, "La confirmación no coincide con la contraseña nueva."
+    return actualizar_contrasena(usuario_id, nueva)
+
+
 # ---------- Recuperación de contraseña  ----------
 # El proyecto es una demostración académica: no hay servidor de correo,
 # así que el código se genera aquí y se muestra en pantalla como si se
